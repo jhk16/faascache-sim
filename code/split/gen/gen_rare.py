@@ -1,16 +1,26 @@
 import os
 import pandas as pd
 import sys
-sys.path.insert(1, '/home/alfuerst/repos/faas-keepalive-20/code/split/')
+# sys.path.insert(1, '/home/alfuerst/repos/faas-keepalive-20/code/split/')
 import numpy as np
 import pickle
 from math import ceil
 
-save_dir = "/data2/alfuerst/azure/functions/trace_pckl/middle/"
-store = "/data2/alfuerst/azure/functions/trace_pckl/"
+class LambdaData:
+    def __init__ (self, kind, mem_size, run_time, warm_time):
+        self.kind = kind 
+        self.mem_size = mem_size
+        self.run_time = run_time 
+        self.warm_time = warm_time
+
+# save_dir = "/data2/alfuerst/azure/functions/trace_pckl/middle/"
+# store = "/data2/alfuerst/azure/functions/trace_pckl/"
+save_dir = "../../trace/rare/"
+store = "../../trace/trace_pckl/"
 buckets = [str(i) for i in range(1, 1441)]
 
 datapath = "/data2/alfuerst/azure/functions/"
+datapath = "/home/jonghyeon/research/faascache-sim/azurefunctions-dataset2019"
 durations = "function_durations_percentiles.anon.d01.csv"
 invocations = "invocations_per_function_md.anon.d01.csv"
 mem_fnames = "app_memory_percentiles.anon.d01.csv"
@@ -54,19 +64,21 @@ def gen_traces():
 
     file = os.path.join(datapath, durations)
     durations = pd.read_csv(file)
-    durations.index = durations["HashFunction"]
-    durations = durations.drop_duplicates("HashFunction")
+    durations.set_index("HashFunction", inplace=True)
+    # durations.index = durations["HashFunction"]
+    # durations = durations.drop_duplicates("HashFunction")
 
     group_by_app = durations.groupby("HashApp").size()
 
     file = os.path.join(datapath, invocations)
     invocations = pd.read_csv(file)
     invocations = invocations.dropna()
-    invocations.index = invocations["HashFunction"]
-    sums = invocations.sum(axis=1)
+    # invocations.index = invocations["HashFunction"]
+    invocations.set_index("HashFunction", inplace=True)
+    sums = invocations.sum(axis=1, numeric_only=True)
 
     invocations = invocations[sums > 1] # action must be invoked at least twice
-    invocations = invocations.drop_duplicates("HashFunction")
+    # invocations = invocations.drop_duplicates("HashFunction")
     # sums = invocations.sum(axis=1)
     # print(sums.quantile(quantiles))
 

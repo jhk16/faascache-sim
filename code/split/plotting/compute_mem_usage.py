@@ -17,8 +17,10 @@ import matplotlib.pyplot as plt
 import argparse
 
 # data_path = "/data2/alfuerst/azure/functions/trace_runs_updated"
-memory_path = "/data2/alfuerst/azure/functions/trace_runs_rep_392/memory"
-log_dir = "/data2/alfuerst/azure/functions/trace_runs_rep_392/logs/"
+#  memory_path = "/data2/alfuerst/azure/functions/trace_runs_rep_392/memory"
+#  log_dir = "/data2/alfuerst/azure/functions/trace_runs_rep_392/logs/"
+memory_path = "./trace_output/representative/memory/"
+log_dir = "./trace_output/representative/logs/"
 
 def get_info_from_file(filename):
     policy, num_funcs, mem, run, _ = filename[:-5].split("-")
@@ -31,31 +33,38 @@ def load_data(path):
 def compute_mem_per_min(file, ret=False):
     pth = os.path.join(log_dir, file)
     policy, num_funcs, mem_cap, run = get_info_from_file(file)
-    fname = "{}-{}-{}-{}-".format(policy, num_funcs, mem_cap, run)
     memUsageFname = os.path.join(log_dir, file)
+    if policy != 'TTL':
+        return
+
+    print(file)
 
     try:
-        df = pd.read_csv(memUsageFname, error_bad_lines=False, warn_bad_lines=False)
+        df = pd.read_csv(memUsageFname, usecols = [0, 1, 2, 3, 5])
     except:
-        print(file)
         raise
     start = {"time":0, "reason":"fix","mem_used":df.at[0, "mem_used"], "mem_size":0, "extra":"N/A"}
     end = {"time": 24 * 59 * 60 * 1000, "reason": "fix", "mem_used": df.at[len(df)-1, "mem_used"], "mem_size": 0, "extra": "N/A"}
     # print(start)
     # print(end)
     df2 = pd.DataFrame([start, end], columns=df.columns)
-    df = df.append(df2)
+    df3 = pd.concat([df, df2])
 
     sort = df.sort_values(by=["time", "mem_used"])
     dedup = sort.drop_duplicates(subset=["time"], keep="last")
-    dedup.index = (dedup["time"] / 1000).apply(datetime.fromtimestamp)
+    dedup.loc[:, 'time'] = dedup['time'].apply(lambda x : datetime.fromtimestamp(x / 1000))
+
+    dedup.set_index('time', inplace=True)
+    dedup = dedup['mem_used']
     # upsample to second detail since there may be gaps
     # then downsample to minute buckets for 
-    dedup = dedup.resample("S").mean().interpolate().resample("1Min").interpolate()
+    dedup = dedup.resample("S").mean().interpolate().resample("1min").interpolate()
 
     save_path = "{}-{}-{}-{}.npy".format(policy, num_funcs, mem_cap, run)
     save_path = os.path.join(memory_path, save_path)
-    d = dedup["mem_used"].to_numpy(copy=True)
+
+    # d = dedup["mem_used"].to_numpy(copy=True)
+    d = dedup.to_numpy(copy=True)
     if len(d) != 1440:
         d.resize(1440)
     # saved as numpy array in one minute buckets of average memory usage across the minute
@@ -66,6 +75,12 @@ def compute_all():
         files = [file for file in os.listdir(log_dir) if os.path.isfile(os.path.join(log_dir, file)) and "memusagehist" in file]
         print("computing {} files".format(len(files)))
         pool.map(compute_mem_per_min, files)
+
+def compute_all_seq():
+    files = [file for file in os.listdir(log_dir) if os.path.isfile(os.path.join(log_dir, file)) and "memusagehist" in file]
+    print("computing {} files".format(len(files)))
+    for f in files:
+        compute_mem_per_min(f)
 
 
 def compute_one():
@@ -93,5 +108,7 @@ if __name__ == "__main__":
     parser.add_argument("--logdir", type=str, default="/data2/alfuerst/verify-test/logs/", required=False)
     args = parser.parse_args()
     log_dir= args.logdir
-    memory_path = args.logdir
-    compute_all()
+    memory_path = args.savedir
+
+    # compute_all()
+    compute_all_seq()

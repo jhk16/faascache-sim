@@ -53,8 +53,11 @@ def compare_pols(policy, num_functions, char, mem_capacity=32000, args=None):
     print("done", name)
 
 def run_multiple_expts(args):
-    policies = ["GD", "TTL", "LRU", "LND", "HIST", "FREQ", "SIZE"]
-    mems = [i for i in range(1000, 80000, args.memstep)]
+    # policies = ["GD", "TTL", "LRU", "LND", "HIST", "FREQ", "SIZE"]
+    policies = ["TTL"]
+    # mems = [i for i in range(1000, 80000, args.memstep)]
+    # mems = [64000]
+    mems = [256000]
     mems = set(mems)
     results = []
     print(len(policies) * len(mems))
@@ -62,14 +65,28 @@ def run_multiple_expts(args):
         for policy in policies:
             for mem in mems:
                 for num_func in [args.numfuncs]:
-                    for char in ["b"]:
-                        result = pool.apply_async(compare_pols, [policy, num_func, char, mem, args])
-                        results.append(result)
+                    char = 'a'
+                    result = pool.apply_async(compare_pols, [policy, num_func, char, mem, args])
+                    results.append(result)
         [result.wait() for result in results]
         for result in results:
             r = result.get()
             if r is not None:
                 print(r)
+
+def run_multiple_expts_seq(args):
+    # policies = ["GD", "TTL", "LRU", "LND", "HIST", "FREQ", "SIZE"]
+    policies = ["TTL"]
+    mems = [i for i in range(1000, 80000, args.memstep)]
+    # mems = [64000]
+    mems = set(mems)
+    results = []
+    print(len(policies) * len(mems))
+    for policy in policies:
+        for mem in mems:
+            for num_func in [args.numfuncs]:
+                char = 'a'
+                compare_pols(policy, num_func, char, mem, args)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run FaasCache Simulation')
@@ -86,3 +103,4 @@ if __name__ == "__main__":
 
     print(args)
     run_multiple_expts(args)
+    # run_multiple_expts_seq(args)

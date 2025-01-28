@@ -10,6 +10,7 @@ shuffle(actions)
 # ids = shuffle(ids)
 
 file = "/data2/alfuerst/azure/functions/invocations_per_function_md.anon.d01.csv"
+file = "/home/jonghyeon/research/faascache-sim/azurefunctions-dataset2019/invocations_per_function_md.anon.d01.csv"
 buckets = [str(i) for i in range(1, 1441)]
 section = [i for i in range(600, 661)]
 columns = ["HashOwner","HashApp","HashFunction","Trigger"]

@@ -25,6 +25,7 @@ def main(args):
     wsk = subprocess.Popen(args=["lookbusy", "--ncpus=1", mem_util, "--cpu-util=25-75"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     sleep(timeout)
     wsk.kill()
+    # wsk.terminate()
 
     latency = time() - start
 

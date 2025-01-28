@@ -20,6 +20,7 @@ class LambdaScheduler:
         fname = "{}-{}-{}-{}-".format(policy, num_funcs, mem_capacity, run)
 
         self.mem_capacity = mem_capacity
+        self.cxl_capacity = mem_capacity
         self.mem_used = 0
         self.eviction_policy = policy
         self.Clock = 0
@@ -27,6 +28,9 @@ class LambdaScheduler:
         self.finish_times = []
         self.running_c = dict()
         self.ContainerPool = []
+
+        self.last_num_container = 0
+        self.inflights = dict()
 
         self.PerfLogFName = os.path.join(log_dir, fname+"performancelog.csv")
         self.PerformanceLog = open(self.PerfLogFName, "w")
@@ -39,6 +43,10 @@ class LambdaScheduler:
         self.PureCacheFname = os.path.join(log_dir, fname+"purecachehist.csv")
         self.PureCacheHist = open(self.PureCacheFname, "w")
         self.PureCacheHist.write("time,used_mem,running_mem,pure_cache\n")
+
+        self.ContainerFname = os.path.join(log_dir, fname+"containerhist.csv")
+        self.ContainerHist = open(self.ContainerFname, "w")
+        self.ContainerHist.write("time,total,running,max_concurrency\n")
 
         self.evdict = defaultdict(int)
         self.capacity_misses = defaultdict(int)
@@ -59,7 +67,6 @@ class LambdaScheduler:
     def WriteMemLog(self, reason, wall_time, mem_used, mem_size, extra="N/A"):
         msg = "{},{},{},{},{}\n".format(wall_time, reason, mem_used, mem_size, str(extra))
         self.MemUsageHist.write(msg)
-
     ##############################################################
 
     def WritePerfLog(self, d:LambdaData, time, meta):
@@ -77,6 +84,12 @@ class LambdaScheduler:
         msg = "{},{},{},{}\n".format(time, self.mem_used, running_mem, pure_cache)
         self.PureCacheHist.write(msg)
 
+    def WriteConLog(self, time):
+        num_total_c = len(self.ContainerPool)
+        num_running_c = len(self.running_c)
+        max_concurrency = max(self.inflights.values())
+        msg = "{},{},{},{}\n".format(time, num_total_c, num_running_c, max_concurrency)
+        self.ContainerHist.write(msg)
 
     ##############################################################
 
@@ -319,6 +332,10 @@ class LambdaScheduler:
             c.Priority = self.calc_priority(c)
             c.insert_clock = self.Clock #Need this when recomputing priority
             heapq.heappush(self.ContainerPool, c)
+            if c.metadata.kind not in self.inflights:
+                self.inflights[c.metadata.kind] = 0
+            else:
+                self.inflights[c.metadata.kind] += 1
             return True
         else:
             # print ("Not enough space for memsize, used, capacity.", mem_size, self.mem_used, self.mem_capacity)
@@ -331,6 +348,7 @@ class LambdaScheduler:
             raise Exception("Cannot remove a running container")
         self.ContainerPool.remove(c)
         self.mem_used -= c.metadata.mem_size
+        self.inflights[c.metadata.kind] -= 1
 
         self.WriteMemLog(reason, self.wall_time, self.mem_used, c.metadata.mem_size)
         heapq.heapify(self.ContainerPool)
@@ -438,6 +456,7 @@ class LambdaScheduler:
             self.mem_used -= v.metadata.mem_size
             k = v.metadata.kind
             self.evdict[k] += 1
+            self.inflights[k] -= 1
 
         for c in save:
             heapq.heappush(self.ContainerPool, c)
@@ -460,7 +479,7 @@ class LambdaScheduler:
     def cache_miss(self, d:LambdaData):
         c = Container(d)
         if not self.checkfree(c) : #due to space constraints
-            #print("Eviction needed ", d.mem_size, self.mem_used)
+            # print("Eviction needed ", d.mem_size, self.mem_used)
             evicted = self.Eviction(d) #Is a list. also terminates the containers?
 
         added = self.AddToPool(c)
@@ -507,6 +526,17 @@ class LambdaScheduler:
         self.PreWarmContainers()
         self.track_activation(d)
 
+        # Calculate max concurrency of a single function
+        # if self.last_num_container != len(self.ContainerPool):
+        #     functions = set([c.metadata.kind for c in self.ContainerPool])
+        #     max_concurrency = 0
+        #     for f in functions:
+        #         concurrency = len([x for x in self.ContainerPool if (x.metadata.kind == f)])
+        #         max_concurrency = max(max_concurrency, concurrency)
+        #     self.max_concurrency = max_concurrency
+        #     print('last current {} {}'.format(self.last_num_container, len(self.ContainerPool)))
+        # self.last_num_container = len(self.ContainerPool)
+
         # Concurrency check can happen here. If len(running_c) > CPUs, put in the queue.
         # Could add fake 'check' entries corresponding to finishing times to check and drain the queue...
 
@@ -542,6 +572,7 @@ class LambdaScheduler:
 
         #Now rebalance the heap and update container access time
         self.WritePureCacheHist(t)
+        self.WriteConLog(t)
         heapq.heapify(self.ContainerPool)
 
     ##############################################################

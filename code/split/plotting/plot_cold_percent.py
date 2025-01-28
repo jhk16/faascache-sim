@@ -11,6 +11,7 @@ import matplotlib as mpl
 mpl.rcParams.update({'font.size': 14})
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import argparse
 
 def plot_results(result_dict, save_path):
     contenders = list(result_dict.keys())
@@ -57,7 +58,8 @@ def plot_run(results_dict, mem_alloc, num_funcs):
     for policy in accesses_per_policy.keys():
         averaged_result_dict[policy] = misses_per_policy[policy] / accesses_per_policy[policy]
 
-    save_path = "../figs/cold_precent/cold_percent-{}-{}.pdf".format(mem_alloc, num_funcs)
+    # save_path = "../figs/cold_precent/cold_percent-{}-{}.pdf".format(mem_alloc, num_funcs)
+    save_path = os.path.join(plot_dir, "cold_percent-{}-{}.pdf".format(mem_alloc, num_funcs))
     plot_results(averaged_result_dict, save_path)
 
 def plot_all():
@@ -88,4 +90,12 @@ def plot_all():
         plot_run(data[mem_alloc], mem_alloc, num)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='plot FaasCache Simulation')
+    parser.add_argument("--analyzeddir", type=str, default="/data2/alfuerst/verify-test/analyzed", required=False)
+    parser.add_argument("--plotdir", type=str, default="../figs/increase_with_mem/", required=False)
+    parser.add_argument("--numfuncs", type=int, default=392, required=False)
+    args = parser.parse_args()
+    data_path = args.analyzeddir
+    plot_dir = args.plotdir
+
     plot_all()

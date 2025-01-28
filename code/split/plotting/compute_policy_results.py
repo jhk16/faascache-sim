@@ -90,6 +90,13 @@ def compute_all():
         print("computing {} files".format(len(files)))
         pool.map(compute_timings, files)
 
+def compute_all_seq():
+    files = [file for file in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, file))]
+    print("computing {} files".format(len(files)))
+    for f in files:
+        print(f)
+        compute_timings(f)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='analyze FaasCache Simulation')
     parser.add_argument("--pckldir", type=str, default="/data2/alfuerst/verify-test/", required=False)
@@ -98,4 +105,5 @@ if __name__ == "__main__":
     data_path = args.pckldir
     save_path = args.savedir
     compute_all()
+    # compute_all_seq()
     # compute_timings("GD-200-768-e.pckl")

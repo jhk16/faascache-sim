@@ -31,6 +31,7 @@ def sort_trace(*traces):
 
 def gen_lru():
     trace = []
+    # name, mem, warm_ms, cold_ms, iat, start
     trace += gen_trace("a", 300, 100, 300, 500, 0)
     trace += gen_trace("b", 300, 100, 300, 500, 50)
     trace += gen_trace("c", 300, 100, 300, 500, 100)
@@ -90,6 +91,7 @@ def gen_freq_priority():
 
 def gen_freq_priority_sub():
     trace = []
+    # name, mem, warm_ms, cold_ms, iat, start
     trace += gen_trace("rare_1", 250, 100, 300, 1500, 0)
     trace += gen_trace("rare_2", 250, 100, 300, 1500, 300)
     trace += gen_trace("rare_3", 250, 100, 300, 1500, 600)

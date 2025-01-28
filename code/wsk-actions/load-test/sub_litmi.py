@@ -4,7 +4,7 @@ from time import time
 import pickle
 import threading
 
-set_properties()
+# set_properties()
 
 zips = ["chameleon.zip",  "cnn_image_classification.zip",  "dd.zip",  "float_operation.zip",  "gzip_compression.zip",  "hello.zip",  "image_processing.zip",  "lin_pack.zip",  "model_training.zip",  "pyaes.zip",  "video_processing.zip", "json_dumps_loads.zip"]
 actions = ["cham", "cnn", "dd", "float", "gzip", "hello", "image", "lin_pack", "train", "aes", "video", "json"]
@@ -13,9 +13,9 @@ mem = [128, 512, 256, 64, 256, 128, 256, 256, 542, 256, 512, 128]
 
 urls = []
 
-for zip_file, action_name, container, mem in zip(zips, actions, containers, mem):
-    path = os.path.join("../py", zip_file)
-    urls.append(add_web_action(action_name, path, container, mem))
+# for zip_file, action_name, container, mem in zip(zips, actions, containers, mem):
+#     path = os.path.join("../py", zip_file)
+#     urls.append(add_web_action(action_name, path, container, mem))
 
 trans = {"rare_1":0, "rare_2":1, "rare_3":2, "often":3}
 
@@ -33,8 +33,9 @@ start = time()
 for tup in trace:
     t = time()
     hash_app, invoc_time_ms, mem, warm, cold = tup
-    url = urls[trans[hash_app]]
+    # url = urls[trans[hash_app]]
     invoc_time = invoc_time_ms / 1000 # convert ms to float s
     while t - start < invoc_time:
         t = time()
-    threading.Thread(target=invoke_web_action, args=(url,)).start()
+    # threading.Thread(target=invoke_web_action, args=(url,)).start()
+    print(tup, actions[trans[hash_app]])

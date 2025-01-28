@@ -68,7 +68,7 @@ def plot_run(results_dict, num_funcs):
     results_per_policy = defaultdict(list) # p -> [global-dicts]
 
     for mem in results_dict.keys():
-        # if mem <= 50000:
+        if mem <= 50000:
             for policy in results_dict[mem].keys():
                 analysis = results_dict[mem][policy]
                 results_per_policy[policy].append((mem , analysis["global"]["wted_increase"]))

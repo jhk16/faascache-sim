@@ -1,15 +1,25 @@
 import os
 import pandas as pd
 from multiprocessing import Pool
-from LambdaData import *
+#  from LambdaData import *
 import pickle
 from math import ceil
 
-save_dir = "/extra/alfuerst/azure/functions/trace_pckl/represent/"
-store = "/extra/alfuerst/azure/functions/trace_pckl/"
+class LambdaData:
+    def __init__ (self, kind, mem_size, run_time, warm_time):
+        self.kind = kind 
+        self.mem_size = mem_size
+        self.run_time = run_time 
+        self.warm_time = warm_time
+
+save_dir = "../../trace/representative/"
+store = "../../trace/trace_pckl_raw/"
+os.makedirs(store, exist_ok=True)
+os.makedirs(save_dir, exist_ok=True)
 buckets = [str(i) for i in range(1, 1441)]
 
-datapath = "/extra/alfuerst/azure/functions/"
+#  datapath = "/extra/alfuerst/azure/functions/"
+datapath = "/home/jonghyeon/research/faascache-sim/azurefunctions-dataset2019"
 durations = "function_durations_percentiles.anon.d01.csv"
 invocations = "invocations_per_function_md.anon.d01.csv"
 mem_fnames = "app_memory_percentiles.anon.d01.csv"
@@ -17,7 +27,7 @@ mem_fnames = "app_memory_percentiles.anon.d01.csv"
 quantiles = [0.0, 0.25, 0.5, 0.75, 1.0]
 def gen_trace(df, num_funcs, run):
     per_qant = num_funcs // 4
-    sums = df.sum(axis=1)
+    sums = df.sum(axis=1, numeric_only=True)
     qts = sums.quantile(quantiles)
     lambdas = {}
     trace = []
@@ -29,12 +39,13 @@ def gen_trace(df, num_funcs, run):
             high = qts.iloc[i+1]
             choose_from = df[sums.between(low, high)]
             # print(choose_from.describe())
-            chosen = choose_from.sample(per_qant)
+            chosen = choose_from.sample(per_qant, random_state=42)
 
             for index, row in chosen.iterrows():
                 # print(index)
                 pckl = "{}.pckl".format(index)
                 path = os.path.join(store, pckl)
+                # Load function metadata from output of trace_split_functions.py
                 with open(path, "r+b") as f:
                     data = pickle.load(f)
                     one_lambda, one_trace = data
@@ -100,19 +111,22 @@ def gen_traces():
 
     file = os.path.join(datapath, durations)
     durations = pd.read_csv(file)
-    durations.index = durations["HashFunction"]
-    durations = durations.drop_duplicates("HashFunction")
+    durations.set_index("HashFunction", inplace=True)
+    #  durations.index = durations["HashFunction"]
+    #  durations = durations.drop_duplicates("HashFunction")
 
     group_by_app = durations.groupby("HashApp").size()
 
     file = os.path.join(datapath, invocations)
     invocations = pd.read_csv(file)
     invocations = invocations.dropna()
-    invocations.index = invocations["HashFunction"]
-    sums = invocations.sum(axis=1)
+    invocations.set_index("HashFunction", inplace=True)
+    #  invocations.index = invocations["HashFunction"]
+    #  sums = invocations.sum(axis=1)
+    sums = invocations.sum(axis=1, numeric_only=True)
 
     invocations = invocations[sums > 1] # action must be invoked at least twice
-    invocations = invocations.drop_duplicates("HashFunction")
+    #  invocations = invocations.drop_duplicates("HashFunction")
     # sums = invocations.sum(axis=1)
     # print(sums.quantile(quantiles))
 
@@ -127,10 +141,11 @@ def gen_traces():
     memory["divvied"] = new_mem
 
     joined = joined.join(memory, how="inner", on="HashApp", lsuffix='', rsuffix='_mems')
+    print(joined)
 
-    for size in range(8, 400, 4):
-        for run in ["a", "b", "c"]:
-            gen_trace(joined, size, run)
+    # size = 392
+    size = 4
+    gen_trace(joined, size, 'a')
         
 gen_traces()
 
